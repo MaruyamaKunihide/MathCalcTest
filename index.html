@@ -93,7 +93,7 @@
 </head>
 <body>
 
-    <h1 aria-label="1ねんせい さんすうクイズ">1ねんせい さんすうクイズ</h1>
+    <h1 aria-label="2ねんせい さんすうクイズ">1ねんせい さんすうクイズ</h1>
 
     <div id="message" aria-live="polite">「スタート」をおしてね</div>
     <div id="question" aria-live="assertive">？</div>
@@ -134,7 +134,6 @@
         function nextQuestion() {
             if (!isRunning) return;
 
-            // 入力欄をクリアしてフォーカスを当てる
             inputField.value = "";
             inputField.focus();
 
@@ -142,14 +141,20 @@
             let num1, num2, symbol, speechSymbol;
 
             if (isAddition) {
-                num1 = Math.floor(Math.random() * 9) + 1;
-                num2 = Math.floor(Math.random() * (10 - num1 + 1));
+                // --- 2桁のたし算（10〜99） ---
+                num1 = Math.floor(Math.random() * 90) + 10;
+                num2 = Math.floor(Math.random() * 90) + 10;
                 currentAnswer = num1 + num2;
                 symbol = "＋";
                 speechSymbol = "たす";
             } else {
-                num1 = Math.floor(Math.random() * 10) + 1;
-                num2 = Math.floor(Math.random() * num1);
+                // --- 2桁のひき算（必ず大きい数 － 小さい数） ---
+                let n1 = Math.floor(Math.random() * 90) + 10;
+                let n2 = Math.floor(Math.random() * 90) + 10;
+
+                num1 = Math.max(n1, n2); // 大きい方をnum1に
+                num2 = Math.min(n1, n2); // 小さい方をnum2に
+
                 currentAnswer = num1 - num2;
                 symbol = "－";
                 speechSymbol = "ひく";
@@ -158,7 +163,6 @@
             document.getElementById('question').innerText = `${num1}${symbol}${num2}`;
             document.getElementById('message').innerText = "かんがえ中...";
 
-            // 問題を読み上げる
             speak(`${num1} ${speechSymbol} ${num2} は？`, () => {
                 if (isRunning) {
                     document.getElementById('message').innerText = "こたえを どうぞ！";
@@ -216,4 +220,4 @@
         }
     </script>
 </body>
-</html>        
+</html>
