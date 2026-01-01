@@ -26,7 +26,7 @@
 
         #question {
             font-size: 5rem;
-            margin: 20px;
+            margin: 10px;
             font-weight: bold;
             color: #333;
         }
@@ -38,12 +38,22 @@
             margin-bottom: 10px;
         }
 
-        #input-status {
-            font-size: 1.2rem;
-            color: #666;
-            height: 1.5rem;
+        /* 入力エリアのスタイル */
+        #answer-input {
+            font-size: 3rem;
+            width: 150px;
+            text-align: center;
+            padding: 10px;
+            border: 3px solid #ff8c00;
+            border-radius: 15px;
             margin-bottom: 20px;
+            outline: none;
         }
+
+            #answer-input:focus {
+                background-color: #fff;
+                box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+            }
 
         .button-container {
             display: flex;
@@ -52,7 +62,7 @@
 
         button {
             font-size: 1.5rem;
-            padding: 20px 40px;
+            padding: 15px 35px;
             cursor: pointer;
             border-radius: 50px;
             border: none;
@@ -74,15 +84,29 @@
             background-color: #888;
             color: white;
         }
+
+        /* 入力欄を非表示にする（スタート前） */
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-    <h1>1ねんせい さんすうクイズ</h1>
+    <h1 aria-label="1ねんせい さんすうクイズ">1ねんせい さんすうクイズ</h1>
 
-    <div id="message">「スタート」をおしてね</div>
-    <div id="question">？</div>
-    <div id="input-status"></div>
+    <div id="message" aria-live="polite">「スタート」をおしてね</div>
+    <div id="question" aria-live="assertive">？</div>
+
+    <div id="input-area" class="hidden">
+        <input type="number"
+               id="answer-input"
+               inputmode="numeric"
+               pattern="\d*"
+               placeholder="？"
+               aria-label="こたえをにゅうりょくしてください">
+        <p style="color: #666;">（Enterキーで決定）</p>
+    </div>
 
     <div class="button-container">
         <button id="start-btn" onclick="startQuiz()">スタート</button>
@@ -92,27 +116,27 @@
     <script>
         let currentAnswer = 0;
         let isRunning = false;
-        let timeoutTimer = null; // タイマー用の変数
 
-        // 音声合成の設定
+        // 音声合成の設定（問題の読み上げ用）
         const uttr = new SpeechSynthesisUtterance();
         uttr.lang = 'ja-JP';
 
-        // 音声認識の設定
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.interimResults = false;
-            recognition.continuous = false;
-        }
+        const inputField = document.getElementById('answer-input');
+        const inputArea = document.getElementById('input-area');
+
+        // Enterキーが押された時の処理
+        inputField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkAnswer();
+            }
+        });
 
         function nextQuestion() {
             if (!isRunning) return;
 
-            // 前のタイマーをクリア
-            clearTimeout(timeoutTimer);
+            // 入力欄をクリアしてフォーカスを当てる
+            inputField.value = "";
+            inputField.focus();
 
             const isAddition = Math.random() > 0.5;
             let num1, num2, symbol, speechSymbol;
@@ -134,34 +158,32 @@
             document.getElementById('question').innerText = `${num1}${symbol}${num2}`;
             document.getElementById('message').innerText = "かんがえ中...";
 
+            // 問題を読み上げる
             speak(`${num1} ${speechSymbol} ${num2} は？`, () => {
                 if (isRunning) {
-                    document.getElementById('input-status').innerText = "🎤 こたえを どうぞ";
-                    recognition.start();
-
-                    // --- 5秒待機タイマー開始 ---
-                    timeoutTimer = setTimeout(() => {
-                        if (isRunning) {
-                            recognition.stop(); // 音声認識を一旦止める
-                            handleTimeout();
-                        }
-                    }, 5000);
-                    // -----------------------
+                    document.getElementById('message').innerText = "こたえを どうぞ！";
                 }
             });
         }
 
-        // 時間切れ（5秒経過）の処理
-        function handleTimeout() {
-            document.getElementById('input-status').innerText = "じかんぎれ！";
-            const msg = `ざんねん！正解は ${currentAnswer} でした。`;
-            document.getElementById('message').innerText = "正解は " + currentAnswer;
+        // 答え合わせ
+        function checkAnswer() {
+            const userAnswer = parseInt(inputField.value);
 
-            speak(msg, () => {
-                if (isRunning) {
-                    setTimeout(nextQuestion, 1000);
-                }
-            });
+            if (isNaN(userAnswer)) return; // 何も入力されていないときは何もしない
+
+            if (userAnswer === currentAnswer) {
+                document.getElementById('message').innerText = "✨ せいかい！";
+                speak("せいかい！すごいね！", () => {
+                    if (isRunning) setTimeout(nextQuestion, 500);
+                });
+            } else {
+                document.getElementById('message').innerText = "ざんねん！";
+                speak("ざんねん！もういちど", () => {
+                    inputField.value = ""; // 間違えたら数字を消して入力し直し
+                    inputField.focus();
+                });
+            }
         }
 
         function speak(text, callback) {
@@ -170,67 +192,28 @@
             window.speechSynthesis.speak(uttr);
         }
 
-        if (recognition) {
-            recognition.onresult = (event) => {
-                // 回答があったのでタイマーを解除
-                clearTimeout(timeoutTimer);
-
-                const result = event.results[0][0].transcript;
-                document.getElementById('input-status').innerText = `あなたのこたえ: ${result}`;
-
-                const match = result.match(/\d+/);
-                if (match && parseInt(match[0]) === currentAnswer) {
-                    document.getElementById('message').innerText = "✨ せいかい！";
-                    speak("せいかい！すごいね！", () => {
-                        if (isRunning) setTimeout(nextQuestion, 800);
-                    });
-                } else {
-                    document.getElementById('message').innerText = "ざんねん！";
-                    speak("ざんねん！もういちど", () => {
-                        if (isRunning) {
-                            recognition.start();
-                            // 解き直しのためのタイマーを再設定
-                            timeoutTimer = setTimeout(() => {
-                                if (isRunning) {
-                                    recognition.stop();
-                                    handleTimeout();
-                                }
-                            }, 5000);
-                        }
-                    });
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.log("Recognition error", event.error);
-                // ネットワークエラーや無音での停止時、isRunningなら再開を試みる
-                // ただしタイマーが動いている間はhandleTimeoutに任せるためここでは何もしない
-                if (event.error === 'no-speech' && isRunning) {
-                    // 何もしない（タイマーが切れるのを待つ）
-                }
-            };
-        }
-
         function startQuiz() {
             if (isRunning) return;
             isRunning = true;
 
-            // スマホ対策：空の音を鳴らして音声機能をアクティブにする
+            // 入力エリアを表示
+            inputArea.classList.remove('hidden');
+            document.getElementById('message').innerText = "がんばろう！";
+
+            // iOS対策：ユーザー操作直後に音声を出す
             speak("", () => { });
 
-            document.getElementById('message').innerText = "がんばろう！";
             nextQuestion();
         }
 
         function stopQuiz() {
             isRunning = false;
-            clearTimeout(timeoutTimer); // タイマー停止
-            if (recognition) recognition.stop();
+            inputArea.classList.add('hidden');
             window.speechSynthesis.cancel();
             document.getElementById('message').innerText = "お疲れ様でした！";
             document.getElementById('question').innerText = "？";
-            document.getElementById('input-status').innerText = "";
+            inputField.value = "";
         }
     </script>
 </body>
-</html>    
+</html>        
