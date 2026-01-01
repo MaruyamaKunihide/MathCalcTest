@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>1ねんせい 算数クイズ</title>
     <style>
-        body { 
-            font-family: 'Helvetica Neue', Arial, sans-serif; 
-            text-align: center; 
-            background-color: #fff9e6; 
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            background-color: #fff9e6;
             margin: 0;
             padding: 20px;
             display: flex;
@@ -17,31 +17,69 @@
             justify-content: center;
             min-height: 100vh;
         }
-        h1 { color: #ff8c00; font-size: 1.5rem; margin-top: 0; }
-        #question { font-size: 5rem; margin: 20px; font-weight: bold; color: #333; }
-        #message { font-size: 1.8rem; height: 2.5rem; color: #d2691e; margin-bottom: 10px; }
-        #input-status { font-size: 1.2rem; color: #666; height: 1.5rem; margin-bottom: 20px; }
-        
-        .button-container { display: flex; gap: 20px; }
-        button { 
-            font-size: 1.5rem; 
-            padding: 20px 40px; 
-            cursor: pointer; 
-            border-radius: 50px; 
-            border: none; 
+
+        h1 {
+            color: #ff8c00;
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+
+        #question {
+            font-size: 5rem;
+            margin: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #message {
+            font-size: 1.8rem;
+            height: 2.5rem;
+            color: #d2691e;
+            margin-bottom: 10px;
+        }
+
+        #input-status {
+            font-size: 1.2rem;
+            color: #666;
+            height: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            font-size: 1.5rem;
+            padding: 20px 40px;
+            cursor: pointer;
+            border-radius: 50px;
+            border: none;
             box-shadow: 0 4px #999;
             font-weight: bold;
         }
-        button:active { box-shadow: none; transform: translateY(4px); }
-        
-        #start-btn { background-color: #ff4500; color: white; }
-        #stop-btn { background-color: #888; color: white; }
+
+            button:active {
+                box-shadow: none;
+                transform: translateY(4px);
+            }
+
+        #start-btn {
+            background-color: #ff4500;
+            color: white;
+        }
+
+        #stop-btn {
+            background-color: #888;
+            color: white;
+        }
     </style>
 </head>
 <body>
 
     <h1>1ねんせい さんすうクイズ</h1>
-    
+
     <div id="message">「スタート」をおしてね</div>
     <div id="question">？</div>
     <div id="input-status"></div>
@@ -51,105 +89,148 @@
         <button id="stop-btn" onclick="stopQuiz()">おわる</button>
     </div>
 
-<script>
-    let currentAnswer = 0;
-    let isRunning = false;
+    <script>
+        let currentAnswer = 0;
+        let isRunning = false;
+        let timeoutTimer = null; // タイマー用の変数
 
-    // 音声合成の設定
-    const uttr = new SpeechSynthesisUtterance();
-    uttr.lang = 'ja-JP';
+        // 音声合成の設定
+        const uttr = new SpeechSynthesisUtterance();
+        uttr.lang = 'ja-JP';
 
-    // 音声認識の設定
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'ja-JP';
-        recognition.interimResults = false;
-        recognition.continuous = false; // スマホではfalseの方が安定します
-    }
-
-    function nextQuestion() {
-        if (!isRunning) return;
-
-        const isAddition = Math.random() > 0.5;
-        let num1, num2, symbol, speechSymbol;
-
-        if (isAddition) {
-            num1 = Math.floor(Math.random() * 9) + 1;
-            num2 = Math.floor(Math.random() * (10 - num1 + 1));
-            currentAnswer = num1 + num2;
-            symbol = "＋";
-            speechSymbol = "たす";
-        } else {
-            num1 = Math.floor(Math.random() * 10) + 1;
-            num2 = Math.floor(Math.random() * num1);
-            currentAnswer = num1 - num2;
-            symbol = "－";
-            speechSymbol = "ひく";
+        // 音声認識の設定
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.interimResults = false;
+            recognition.continuous = false;
         }
 
-        document.getElementById('question').innerText = `${num1}${symbol}${num2}`;
-        speak(`${num1} ${speechSymbol} ${num2} は？`, () => {
-            if (isRunning) {
-                document.getElementById('input-status').innerText = "🎤 こたえを どうぞ";
-                recognition.start();
-            }
-        });
-    }
+        function nextQuestion() {
+            if (!isRunning) return;
 
-    function speak(text, callback) {
-        uttr.text = text;
-        uttr.onend = callback;
-        window.speechSynthesis.speak(uttr);
-    }
+            // 前のタイマーをクリア
+            clearTimeout(timeoutTimer);
 
-    if (recognition) {
-        recognition.onresult = (event) => {
-            const result = event.results[0][0].transcript;
-            document.getElementById('input-status').innerText = `あなたのこたえ: ${result}`;
-            
-            const match = result.match(/\d+/);
-            if (match && parseInt(match[0]) === currentAnswer) {
-                document.getElementById('message').innerText = "✨ せいかい！";
-                speak("せいかい！", () => setTimeout(nextQuestion, 800));
+            const isAddition = Math.random() > 0.5;
+            let num1, num2, symbol, speechSymbol;
+
+            if (isAddition) {
+                num1 = Math.floor(Math.random() * 9) + 1;
+                num2 = Math.floor(Math.random() * (10 - num1 + 1));
+                currentAnswer = num1 + num2;
+                symbol = "＋";
+                speechSymbol = "たす";
             } else {
-                document.getElementById('message').innerText = "ざんねん！";
-                speak("ざんねん！もういちど", () => {
-                    if(isRunning) recognition.start();
-                });
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * num1);
+                currentAnswer = num1 - num2;
+                symbol = "－";
+                speechSymbol = "ひく";
             }
-        };
 
-        recognition.onerror = (event) => {
-            console.log("Recognition error", event.error);
-            // タイムアウトなどで止まったら再開
-            if (isRunning && event.error !== 'aborted') {
-                recognition.stop();
-                setTimeout(() => recognition.start(), 500);
-            }
-        };
-    }
+            document.getElementById('question').innerText = `${num1}${symbol}${num2}`;
+            document.getElementById('message').innerText = "かんがえ中...";
 
-    function startQuiz() {
-        if (isRunning) return;
-        isRunning = true;
-        
-        // スマホ対策：空の音を鳴らして音声機能をアクティブにする
-        speak("", () => {});
-        
-        document.getElementById('message').innerText = "がんばろう！";
-        nextQuestion();
-    }
+            speak(`${num1} ${speechSymbol} ${num2} は？`, () => {
+                if (isRunning) {
+                    document.getElementById('input-status').innerText = "🎤 こたえを どうぞ";
+                    recognition.start();
 
-    function stopQuiz() {
-        isRunning = false;
-        if (recognition) recognition.stop();
-        window.speechSynthesis.cancel();
-        document.getElementById('message').innerText = "お疲れ様でした！";
-        document.getElementById('question').innerText = "？";
-        document.getElementById('input-status').innerText = "";
-    }
-</script>
+                    // --- 5秒待機タイマー開始 ---
+                    timeoutTimer = setTimeout(() => {
+                        if (isRunning) {
+                            recognition.stop(); // 音声認識を一旦止める
+                            handleTimeout();
+                        }
+                    }, 5000);
+                    // -----------------------
+                }
+            });
+        }
+
+        // 時間切れ（5秒経過）の処理
+        function handleTimeout() {
+            document.getElementById('input-status').innerText = "じかんぎれ！";
+            const msg = `ざんねん！正解は ${currentAnswer} でした。`;
+            document.getElementById('message').innerText = "正解は " + currentAnswer;
+
+            speak(msg, () => {
+                if (isRunning) {
+                    setTimeout(nextQuestion, 1000);
+                }
+            });
+        }
+
+        function speak(text, callback) {
+            uttr.text = text;
+            uttr.onend = callback;
+            window.speechSynthesis.speak(uttr);
+        }
+
+        if (recognition) {
+            recognition.onresult = (event) => {
+                // 回答があったのでタイマーを解除
+                clearTimeout(timeoutTimer);
+
+                const result = event.results[0][0].transcript;
+                document.getElementById('input-status').innerText = `あなたのこたえ: ${result}`;
+
+                const match = result.match(/\d+/);
+                if (match && parseInt(match[0]) === currentAnswer) {
+                    document.getElementById('message').innerText = "✨ せいかい！";
+                    speak("せいかい！すごいね！", () => {
+                        if (isRunning) setTimeout(nextQuestion, 800);
+                    });
+                } else {
+                    document.getElementById('message').innerText = "ざんねん！";
+                    speak("ざんねん！もういちど", () => {
+                        if (isRunning) {
+                            recognition.start();
+                            // 解き直しのためのタイマーを再設定
+                            timeoutTimer = setTimeout(() => {
+                                if (isRunning) {
+                                    recognition.stop();
+                                    handleTimeout();
+                                }
+                            }, 5000);
+                        }
+                    });
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.log("Recognition error", event.error);
+                // ネットワークエラーや無音での停止時、isRunningなら再開を試みる
+                // ただしタイマーが動いている間はhandleTimeoutに任せるためここでは何もしない
+                if (event.error === 'no-speech' && isRunning) {
+                    // 何もしない（タイマーが切れるのを待つ）
+                }
+            };
+        }
+
+        function startQuiz() {
+            if (isRunning) return;
+            isRunning = true;
+
+            // スマホ対策：空の音を鳴らして音声機能をアクティブにする
+            speak("", () => { });
+
+            document.getElementById('message').innerText = "がんばろう！";
+            nextQuestion();
+        }
+
+        function stopQuiz() {
+            isRunning = false;
+            clearTimeout(timeoutTimer); // タイマー停止
+            if (recognition) recognition.stop();
+            window.speechSynthesis.cancel();
+            document.getElementById('message').innerText = "お疲れ様でした！";
+            document.getElementById('question').innerText = "？";
+            document.getElementById('input-status').innerText = "";
+        }
+    </script>
 </body>
-</html>
+</html>    
